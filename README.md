@@ -1,146 +1,92 @@
 # AI Web Search Agent
 
-An AI-powered agent that searches the web and generates grounded answers using live internet data.
+An AI-powered web search tool that generates answers using live internet data.
+
+---
+
+## Overview
+
+This system accepts natural language questions, searches the internet, and synthesizes answers. It extracts content from multiple webpages and uses an LLM to generate an accurate summary with citations.
+
+---
+
+## Features
+
+* Web search functionality
+* Page content extraction
+* AI-synthesized responses
+* Source link attribution
+* Provider-agnostic LLM support
+
+---
 
 ## Architecture
 
-```
 User Query
-  → Search Tool (DuckDuckGo / Tavily / SerpAPI)
-  → Retrieve Top Results
-  → Extract Page Content
-  → LLM Reasoning (OpenAI / Anthropic / Ollama)
-  → Answer + Sources
+→ Search Tool
+→ Retrieve Page Content
+→ LLM Processing
+→ Final Answer
+
+---
+
+## Project Structure
+
+```text
+agent/      # Main agent logic
+tools/      # Search and webpage extraction
+services/   # LLM and retrieval orchestration
+api/        # FastAPI server endpoints
+ui/         # Streamlit visual interface
+config/     # Environment configuration
 ```
 
-```
-ai-web-search-agent/
-├── agent/
-│   └── search_agent.py        # Main agent pipeline
-├── tools/
-│   ├── search_tool.py         # Search provider abstraction
-│   └── webpage_loader.py      # Page content extraction
-├── services/
-│   ├── llm_provider.py        # Multi-provider LLM interface
-│   └── retrieval_service.py   # Search + extraction orchestration
-├── api/
-│   └── server.py              # FastAPI server
-├── config/
-│   └── settings.py            # Environment-based configuration
-├── utils/
-│   └── logging.py             # Logging setup
-└── tests/
-    └── test_search_agent.py
-```
-
-## Supported LLM Providers
-
-| Provider | `LLM_PROVIDER` | Required Keys |
-|---|---|---|
-| OpenAI | `openai` | `OPENAI_API_KEY` |
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
-| Ollama | `ollama` | `OLLAMA_BASE_URL` |
-| OpenAI-Compatible | `openai_compatible` | `OPENAI_API_KEY`, `OPENAI_BASE_URL` |
+---
 
 ## Setup
 
+1. Clone repository
+2. Create virtual environment
+3. Install dependencies
+4. Add environment variables
+5. Run application
+
+---
+
+## Environment Variables
+
+* `OPENAI_API_KEY`
+* `LLM_PROVIDER`
+* `LLM_MODEL`
+* `SEARCH_PROVIDER`
+
+---
+
+## Running the Project
+
 ```bash
-# Clone
-git clone https://github.com/<your-username>/ai-web-search-agent.git
-cd ai-web-search-agent
-
-# Virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install
 pip install -r requirements.txt
-
-# Configure
-cp .env.example .env
-# Edit .env with your provider keys
-```
-
-## Usage
-
-### API Server
-
-```bash
-python -m api.server
-# Server starts at http://localhost:8000
-```
-
-### API Endpoints
-
-**Search Query**
-```bash
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What are the latest developments in quantum computing?"}'
-```
-
-Response:
-```json
-{
-  "answer": "Recent developments in quantum computing include...",
-  "sources": [
-    "https://example.com/quantum-2024",
-    "https://example.com/quantum-breakthroughs"
-  ]
-}
-```
-
-**Health Check**
-```bash
-curl http://localhost:8000/health
-```
-
-### Python SDK
-
-```python
-from agent.search_agent import SearchAgent
-
-agent = SearchAgent()
-print(result.answer)
-for url in result.sources:
-    print(f"  - {url}")
-```
-
-### Streamlit UI
-
-```bash
-# Ensure requirements are installed
-pip install -r requirements.txt
-
-# Run the UI
 streamlit run ui/app.py
 ```
 
-## Example Queries
+---
 
-- "What are the latest AI regulations in the EU?"
-- "Compare Python 3.12 vs 3.11 performance improvements"
-- "Current weather in San Francisco"
-- "Latest SpaceX launch details"
+## Example Usage
 
-## Configuration
+**Question:**
+"What are the latest developments in quantum computing?"
 
-All settings are managed via environment variables or `.env` file. See `.env.example` for the full list.
+**Answer:**
+Recent developments in quantum computing include advances in error correction and higher stable qubit counts.
 
-| Variable | Default | Description |
-|---|---|---|
-| `LLM_PROVIDER` | `openai` | LLM backend |
-| `LLM_MODEL` | `gpt-4o-mini` | Model name |
-| `SEARCH_PROVIDER` | `duckduckgo` | Search backend |
-| `MAX_SEARCH_RESULTS` | `5` | Results per query |
-| `LOG_LEVEL` | `INFO` | Logging verbosity |
+**Sources:**
+- https://example.com/quantum
+- https://example.com/physics
 
-## Tests
+---
 
-```bash
-python -m pytest tests/ -v
-```
+## Design Decisions
 
-## License
-
-MIT
+* clean modular architecture
+* provider-agnostic LLM layer
+* decoupled search providers
