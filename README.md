@@ -101,11 +101,19 @@ curl http://localhost:8000/health
 from agent.search_agent import SearchAgent
 
 agent = SearchAgent()
-result = agent.query("Who won the 2024 Nobel Prize in Physics?")
-
 print(result.answer)
 for url in result.sources:
     print(f"  - {url}")
+```
+
+### Streamlit UI
+
+```bash
+# Ensure requirements are installed
+pip install -r requirements.txt
+
+# Run the UI
+streamlit run ui/app.py
 ```
 
 ## Example Queries
