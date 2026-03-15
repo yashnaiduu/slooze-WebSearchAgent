@@ -3,7 +3,6 @@ from typing import Optional
 
 import httpx
 from bs4 import BeautifulSoup
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config.settings import settings
 
@@ -12,13 +11,12 @@ logger = logging.getLogger(__name__)
 STRIPPED_TAGS = {"script", "style", "nav", "footer", "header", "aside", "form", "noscript"}
 
 
-@retry(wait=wait_exponential(min=1, max=8), stop=stop_after_attempt(2), reraise=True)
 def load_page_content(url: str, max_length: int | None = None) -> Optional[str]:
     max_length = max_length or settings.MAX_PAGE_CONTENT_LENGTH
     try:
         response = httpx.get(
             url,
-            timeout=settings.REQUEST_TIMEOUT,
+            timeout=6,
             follow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 (compatible; AISearchBot/1.0)"},
         )

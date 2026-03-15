@@ -17,16 +17,26 @@ class SearchResult:
 
 
 class DuckDuckGoSearch:
-    def __init__(self, max_results: int = 5):
+    def __init__(self, max_results: int = 3):
         self._max_results = max_results
 
-    @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3), reraise=True)
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=15),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
     def search(self, query: str) -> List[SearchResult]:
         from duckduckgo_search import DDGS
+        from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
         logger.info(f"DuckDuckGo search: '{query}'")
-        with DDGS() as ddgs:
-            raw = list(ddgs.text(query, max_results=self._max_results))
+        try:
+            with DDGS() as ddgs:
+                raw = list(ddgs.text(query, max_results=self._max_results))
+        except DuckDuckGoSearchException as exc:
+            if "Ratelimit" in str(exc):
+                logger.warning("DuckDuckGo rate limit hit, backing off…")
+            raise
 
         return [
             SearchResult(

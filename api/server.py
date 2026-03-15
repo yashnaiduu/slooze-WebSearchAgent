@@ -42,7 +42,16 @@ def search_query(request: QueryRequest):
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
-    result = agent.query(request.query)
+    try:
+        result = agent.query(request.query)
+    except Exception as exc:
+        if "Ratelimit" in str(exc):
+            raise HTTPException(
+                status_code=503,
+                detail="Search provider is rate-limited. Please wait a moment and try again.",
+            )
+        raise HTTPException(status_code=500, detail=f"Internal error: {exc}")
+
     return QueryResponse(answer=result.answer, sources=result.sources)
 
 
