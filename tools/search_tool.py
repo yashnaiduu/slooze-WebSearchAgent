@@ -1,8 +1,11 @@
 import logging
+import httpx
+import time
 from dataclasses import dataclass
 from typing import List
-
 from tenacity import retry, stop_after_attempt, wait_exponential
+from duckduckgo_search import DDGS
+from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
 from config.settings import settings
 
@@ -20,85 +23,73 @@ class DuckDuckGoSearch:
     def __init__(self, max_results: int = 3):
         self._max_results = max_results
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=15),
-        stop=stop_after_attempt(3),
-        reraise=True,
-    )
     def search(self, query: str) -> List[SearchResult]:
-        from duckduckgo_search import DDGS
-        from duckduckgo_search.exceptions import DuckDuckGoSearchException
-
         logger.info(f"DuckDuckGo search: '{query}'")
-        try:
-            with DDGS() as ddgs:
-                raw = list(ddgs.text(query, max_results=self._max_results))
-        except DuckDuckGoSearchException as exc:
-            if "Ratelimit" in str(exc):
-                logger.warning("DuckDuckGo rate limit hit, backing off…")
-            raise
 
-        return [
-            SearchResult(
-                title=r.get("title", ""),
-                url=r.get("href", ""),
-                snippet=r.get("body", ""),
-            )
-            for r in raw
-        ]
+        delays = [5, 15, 30, 60]
+        for attempt, delay in enumerate(delays, 1):
+            try:
+                with DDGS() as ddgs:
+                    raw = list(ddgs.text(query, max_results=self._max_results))
+                return [
+                    SearchResult(
+                        title=r.get("title", ""),
+                        url=r.get("href", ""),
+                        snippet=r.get("body", ""),
+                    )
+                    for r in raw
+                ]
+            except DuckDuckGoSearchException as exc:
+                if "Ratelimit" in str(exc):
+                    logger.warning(f"DuckDuckGo rate limit (attempt {attempt}), retrying in {delay}s...")
+                    time.sleep(delay)
+                else:
+                    logger.error(f"DuckDuckGo error: {exc}")
+                    break
+            except Exception as exc:
+                logger.error(f"DuckDuckGo unexpected error: {exc}")
+                break
+
+        logger.warning("DuckDuckGo exhausted retries, returning empty results.")
+        return []
 
 
-class TavilySearch:
+class SerperSearch:
     def __init__(self, max_results: int = 5):
         self._max_results = max_results
 
     @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3), reraise=True)
-    def search(self, query: str) -> List[SearchResult]:
-        import httpx
-
-        logger.info(f"Tavily search: '{query}'")
+    def _do_search(self, query: str) -> dict:
         response = httpx.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": settings.TAVILY_API_KEY,
-                "query": query,
-                "max_results": self._max_results,
+            "https://google.serper.dev/search",
+            headers={
+                "X-API-KEY": settings.SERPER_API_KEY,
+                "Content-Type": "application/json",
             },
-            timeout=settings.REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        return [
-            SearchResult(
-                title=r.get("title", ""),
-                url=r.get("url", ""),
-                snippet=r.get("content", ""),
-            )
-            for r in data.get("results", [])
-        ]
-
-
-class SerpAPISearch:
-    def __init__(self, max_results: int = 5):
-        self._max_results = max_results
-
-    @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3), reraise=True)
-    def search(self, query: str) -> List[SearchResult]:
-        import httpx
-
-        logger.info(f"SerpAPI search: '{query}'")
-        response = httpx.get(
-            "https://serpapi.com/search",
-            params={
-                "api_key": settings.SERPAPI_API_KEY,
+            json={
                 "q": query,
                 "num": self._max_results,
             },
             timeout=settings.REQUEST_TIMEOUT,
         )
         response.raise_for_status()
-        data = response.json()
+        return response.json()
+
+    def search(self, query: str) -> List[SearchResult]:
+        logger.info(f"Serper search: '{query}'")
+
+        if not settings.SERPER_API_KEY or settings.SERPER_API_KEY == "YOUR_SERPER_API_KEY_HERE":
+            logger.error("SERPER_API_KEY is not configured. Set it in .env.")
+            return []
+
+        try:
+            data = self._do_search(query)
+        except httpx.HTTPStatusError as exc:
+            logger.error(f"Serper API error ({exc.response.status_code}): {exc.response.text}")
+            return []
+        except Exception as exc:
+            logger.error(f"Serper search failed: {exc}")
+            return []
 
         return [
             SearchResult(
@@ -106,14 +97,14 @@ class SerpAPISearch:
                 url=r.get("link", ""),
                 snippet=r.get("snippet", ""),
             )
-            for r in data.get("organic_results", [])[:self._max_results]
+            for r in data.get("organic", [])
         ]
+
 
 
 _SEARCH_PROVIDERS = {
     "duckduckgo": DuckDuckGoSearch,
-    "tavily": TavilySearch,
-    "serpapi": SerpAPISearch,
+    "serper": SerperSearch,
 }
 
 

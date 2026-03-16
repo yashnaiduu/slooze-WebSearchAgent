@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -23,8 +25,14 @@ app.add_middleware(
 agent = SearchAgent()
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
 class QueryRequest(BaseModel):
     query: str
+    history: Optional[list[ChatMessage]] = None
 
 
 class QueryResponse(BaseModel):
@@ -43,7 +51,8 @@ def search_query(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
     try:
-        result = agent.query(request.query)
+        history_dicts = [m.model_dump() for m in request.history] if request.history else None
+        result = agent.query(request.query, history=history_dicts)
     except Exception as exc:
         if "Ratelimit" in str(exc):
             raise HTTPException(
