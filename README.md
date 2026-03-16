@@ -8,6 +8,8 @@ Ask any question in plain English and get a real-time, AI-synthesized answer fro
 
 This agent accepts natural language questions, searches the internet, extracts content from relevant pages, and generates a concise answer with source links. It works with multiple LLM providers and search backends, all configurable via a single `.env` file.
 
+![Web Search Agent Demo](assets/demo.png)
+
 ---
 
 ## Features
